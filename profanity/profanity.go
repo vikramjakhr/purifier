@@ -10,13 +10,19 @@ import (
 	"bytes"
 	"sync"
 	"log"
+	"regexp"
 )
+
+var blank *regexp.Regexp
+var uRepeat *regexp.Regexp
+var iRepeat *regexp.Regexp
 
 var wordsMap map[string]interface{}
 
 func init() {
 	wordsMap = make(map[string]interface{})
 	cacheAbuses()
+	regexpCompile()
 }
 
 type ProfanityResp struct {
@@ -30,9 +36,11 @@ func Filter(w http.ResponseWriter, req *http.Request) {
 		channel := make(chan string)
 		var wg sync.WaitGroup
 		found := []string{}
-		text, err := ioutil.ReadAll(req.Body)
+		b, err := ioutil.ReadAll(req.Body)
+		text := filterUsingRegex(string(b))
 		checkErr(err)
-		words := strings.Split(string(text), " ")
+		log.Println(text)
+		words := strings.Split(text, " ")
 		wg.Add(len(words))
 		go func() {
 			for msg := range channel {
@@ -41,7 +49,6 @@ func Filter(w http.ResponseWriter, req *http.Request) {
 			}
 		}()
 		for _, word := range words {
-			log.Println(word)
 			go func(w string) {
 				s := strings.TrimSpace(w);
 				if _, ok := wordsMap[s]; s != "" && ok {
@@ -99,4 +106,17 @@ func checkErr(e error) {
 	if e != nil {
 		panic(e)
 	}
+}
+
+func regexpCompile() {
+	blank = regexp.MustCompile("([\\[$&,:;=?#|'<>.^*\\(\\)%\\]])|(\\b\\d+\\b)|(cum\u0020laude)|(he\\'ll)|(\\B\\#)|(&\\#?[a-z0-9]{2,8};)|(\\b\\'+)|(\\'+\\b)|(\\b\\\")|(\\\"\\b)|(dick\u0020cheney)|(\\!+\\B)")
+	uRepeat = regexp.MustCompile("u+")
+	iRepeat = regexp.MustCompile("i+")
+}
+
+func filterUsingRegex(text string) string {
+	text = blank.ReplaceAllString(text, "")
+	text = uRepeat.ReplaceAllString(text, "u")
+	text = iRepeat.ReplaceAllString(text, "i")
+	return text
 }
