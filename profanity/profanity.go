@@ -79,6 +79,8 @@ func Recache(w http.ResponseWriter, req *http.Request) {
 	fmt.Fprint(w, "Recaching Done")
 }
 
+func Heartbeat(w http.ResponseWriter, req * http.Request) {}
+
 func cacheAbuses() {
 	cacheDirContent("data")
 }
